@@ -1,7 +1,19 @@
 {
+  "crons": [
+    {
+      "path": "/api/sync",
+      "schedule": "0 5 * * *"
+    }
+  ],
+  "functions": {
+    "api/sync.js": {
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
     { "source": "/api/login", "destination": "/api/login" },
     { "source": "/api/logout", "destination": "/api/logout" },
+    { "source": "/api/sync", "destination": "/api/sync" },
     { "source": "/(.*)", "destination": "/api/middleware" }
   ],
   "headers": [
