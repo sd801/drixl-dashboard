@@ -4,16 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'drixl-default-secret-change-me';
-const APP_PASSWORD = process.env.APP_PASSWORD || 'drixl2025';
 const COOKIE_NAME = 'drixl_session';
 const SESSION_DAYS = 30;
-
-function createToken() {
-  const expires = Date.now() + SESSION_DAYS * 86400000;
-  const payload = `authenticated:${expires}`;
-  const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
-  return `${payload}:${hmac}`;
-}
 
 function verifyToken(token) {
   if (!token) return false;
@@ -27,7 +19,7 @@ function verifyToken(token) {
   return true;
 }
 
-function getLoginPage(error = '') {
+function getLoginPage(error) {
   return `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -53,7 +45,6 @@ function getLoginPage(error = '') {
     font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 12px 16px; border-radius: 8px; 
     outline: none; transition: border 0.2s; }
   .field input:focus { border-color: #2a6f4e; }
-  .field input::placeholder { color: #3a4a5a; }
   .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer; 
     font-size: 14px; font-weight: 700; font-family: 'JetBrains Mono', monospace; 
     background: linear-gradient(135deg, #2a6f4e, #4ecdc4); color: #0a1018; 
@@ -74,7 +65,7 @@ function getLoginPage(error = '') {
   </div>
   <div class="card">
     <div class="card-title">Zugang zum Dashboard</div>
-    ${error ? `<div class="error">${error}</div>` : ''}
+    ${error ? '<div class="error">' + error + '</div>' : ''}
     <form method="POST" action="/api/login">
       <div class="field">
         <label>Passwort</label>
@@ -89,45 +80,48 @@ function getLoginPage(error = '') {
 </html>`;
 }
 
+// Pre-load pages into memory at module init
+// The includeFiles config in vercel.json ensures these are available
+const PAGES = {};
+const pagesDir = path.join(process.cwd(), 'pages');
+try {
+  PAGES['/'] = fs.readFileSync(path.join(pagesDir, 'index.html'), 'utf8');
+  PAGES['/index.html'] = PAGES['/'];
+  PAGES['/vergleich.html'] = fs.readFileSync(path.join(pagesDir, 'vergleich.html'), 'utf8');
+  console.log('Pages loaded successfully:', Object.keys(PAGES).join(', '));
+} catch (e) {
+  // Fallback: try relative to __dirname
+  try {
+    const altDir = path.join(__dirname, '..', 'pages');
+    PAGES['/'] = fs.readFileSync(path.join(altDir, 'index.html'), 'utf8');
+    PAGES['/index.html'] = PAGES['/'];
+    PAGES['/vergleich.html'] = fs.readFileSync(path.join(altDir, 'vergleich.html'), 'utf8');
+    console.log('Pages loaded via __dirname fallback');
+  } catch (e2) {
+    console.error('Could not load pages from either path:', e.message, e2.message);
+  }
+}
+
 module.exports = async (req, res) => {
   const cookies = cookie.parse(req.headers.cookie || '');
   const token = cookies[COOKIE_NAME];
   const isAuth = verifyToken(token);
   
-  // Parse URL
   let reqPath = req.url.split('?')[0];
-  if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
+  if (reqPath === '' || reqPath === '/') reqPath = '/';
   
-  // Not authenticated → show login
+  // Not authenticated → login
   if (!isAuth) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(200).send(getLoginPage());
   }
   
-  // Authenticated → serve files
-  const publicDir = path.join(__dirname, '..', 'public');
-  const filePath = path.join(publicDir, reqPath);
-  
-  // Security: prevent path traversal
-  if (!filePath.startsWith(publicDir)) {
-    return res.status(403).send('Forbidden');
+  // Authenticated → serve page
+  const page = PAGES[reqPath] || PAGES['/'];
+  if (page) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(page);
   }
   
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const ext = path.extname(filePath);
-    const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json' };
-    res.setHeader('Content-Type', (types[ext] || 'text/plain') + '; charset=utf-8');
-    return res.status(200).send(content);
-  } catch (e) {
-    // File not found → try index.html
-    if (reqPath !== '/index.html') {
-      try {
-        const content = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(200).send(content);
-      } catch (e2) {}
-    }
-    return res.status(404).send('Not found');
-  }
+  return res.status(404).send('Page not found. Available: ' + Object.keys(PAGES).join(', '));
 };
