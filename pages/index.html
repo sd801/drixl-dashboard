@@ -263,13 +263,13 @@ function processData() {
   dsoData.forEach(d => { if (!dsoByYear[d.year]) dsoByYear[d.year] = { sum: 0, count: 0 }; dsoByYear[d.year].sum += d.days; dsoByYear[d.year].count++; });
   const dsoYearlyArr = Object.entries(dsoByYear).map(([y, v]) => ({ year: parseInt(y), avg: v.count > 0 ? v.sum / v.count : 0, count: v.count })).sort((a, b) => a.year - b.year);
 
-  const curDso = dsoData.filter(d => d.year === 2025);
+  const curDso = dsoData.filter(d => d.year === activeYear);
   const avgDsoCurYear = curDso.length > 0 ? curDso.reduce((s, d) => s + d.days, 0) / curDso.length : 0;
-  const lastDso = dsoData.filter(d => d.year === 2024);
+  const lastDso = dsoData.filter(d => d.year === activeYear - 1);
   const avgDsoLastYear = lastDso.length > 0 ? lastDso.reduce((s, d) => s + d.days, 0) / lastDso.length : 0;
 
   const dsoBuckets = { "0-14": 0, "15-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
-  const relDso = dsoData.filter(d => d.year === 2025);
+  const relDso = dsoData.filter(d => d.year === activeYear);
   (relDso.length > 10 ? relDso : dsoData).forEach(d => {
     if (d.days <= 14) dsoBuckets["0-14"]++;
     else if (d.days <= 30) dsoBuckets["15-30"]++;
@@ -398,6 +398,7 @@ function renderDashboard(d) {
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div class="year-btns">${yearBtns}</div>
         <a href="/vergleich.html" style="font-size: 12px; color: #4ecdc4; text-decoration: none; border: 1px solid #1a3a4a; padding: 6px 14px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; transition: all 0.2s;" onmouseover="this.style.background='#1a3a4a'" onmouseout="this.style.background='transparent'">📊 Periodenvergleich →</a>
+        <a href="/cashflow.html" style="font-size: 12px; color: #4ecdc4; text-decoration: none; border: 1px solid #1a3a4a; padding: 6px 14px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; transition: all 0.2s;" onmouseover="this.style.background='#1a3a4a'" onmouseout="this.style.background='transparent'">💰 Cashflow →</a>
         <a href="/api/logout" style="font-size: 11px; color: #5a6a7a; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; transition: all 0.2s;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='#5a6a7a'">⏻ Logout</a>
       </div>
     </div>
@@ -405,9 +406,9 @@ function renderDashboard(d) {
     <div class="section-title mono">📊 Umsatz & Kennzahlen</div>
     <div class="kpi-grid">
       <div class="kpi-card accent">
-        <div class="kpi-label mono">◆ Verbleibende Tage</div>
-        <div class="kpi-value">${(() => { const n = new Date(); const last = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate(); return (last - n.getDate()) + ' Tage'; })()}</div>
-        <div class="kpi-sub mono">${(() => { const n = new Date(); const mNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']; return mNames[n.getMonth()] + ' ' + n.getFullYear(); })()}</div>
+        <div class="kpi-label mono">◆ Umsatz Gesamt</div>
+        <div class="kpi-value">${formatCHF(d.totalRevenue)}</div>
+        <div class="kpi-sub mono">${formatNum(d.invoiceCount)} Rechnungen (netto)</div>
       </div>
       <div class="kpi-card accent">
         <div class="kpi-label mono">▲ Umsatz ${activeYear}</div>
@@ -425,9 +426,9 @@ function renderDashboard(d) {
         <div class="kpi-sub mono ${avgChgClass}">${d.avgInvChange !== 0 ? avgChgSign + d.avgInvChange.toFixed(1) + '% vs ' + (activeYear-1) : '–'} · ${d.curYearInvCount} Stk</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label mono">⏱ Ø Zahlungsfrist (2025)</div>
+        <div class="kpi-label mono">⏱ Ø Zahlungsfrist</div>
         <div class="kpi-value">${d.avgDsoCurYear > 0 ? d.avgDsoCurYear.toFixed(0) + ' Tage' : '–'}</div>
-        <div class="kpi-sub mono ${dsoClass}">${dsoChg !== 0 ? dsoSign + dsoChg.toFixed(0) + ' Tage vs 2024' : '–'}</div>
+        <div class="kpi-sub mono ${dsoClass}">${dsoChg !== 0 ? dsoSign + dsoChg.toFixed(0) + ' Tage vs ' + (activeYear-1) : '–'}</div>
       </div>
       <div class="kpi-card info">
         <div class="kpi-label mono">◇ Offert-Quote</div>
