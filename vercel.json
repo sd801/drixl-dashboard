@@ -1,6 +1,12 @@
 {
+  "functions": {
+    "api/middleware.js": {
+      "includeFiles": "pages/**"
+    }
+  },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/api/login", "destination": "/api/login" },
+    { "source": "/api/logout", "destination": "/api/logout" },
     { "source": "/(.*)", "destination": "/api/middleware" }
   ],
   "headers": [
