@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/middleware.js": {
-      "includeFiles": "pages/**"
-    }
-  },
   "rewrites": [
     { "source": "/api/login", "destination": "/api/login" },
     { "source": "/api/logout", "destination": "/api/logout" },
