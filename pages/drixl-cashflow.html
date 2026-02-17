@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drixl Transporte – Cashflow</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a1018; color: #c8d2dc; font-family: 'DM Sans', sans-serif; padding: 24px 20px; min-height: 100vh; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Header ── */
+  .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  .header-sub { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #2a6f4e; margin-bottom: 4px; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #e8edf2; line-height: 1.2; }
+  .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nav-link { font-size: 12px; color: #4ecdc4; text-decoration: none; border: 1px solid #1a3a4a; padding: 6px 14px; border-radius: 6px; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+  .nav-link:hover { background: #1a3a4a; color: #e8edf2; }
+
+  /* ── Section Titles ── */
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #2a6f4e; margin: 28px 0 14px; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi-card { background: #111820; border: 1px solid #1a2332; border-radius: 12px; padding: 18px 20px; }
+  .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #5a6a7a; margin-bottom: 8px; }
+  .kpi-value { font-size: 24px; font-weight: 700; color: #e8edf2; }
+  .kpi-sub { font-size: 11px; color: #5a6a7a; margin-top: 4px; }
+  .kpi-value.green { color: #4ecdc4; }
+  .kpi-value.red { color: #ff6b6b; }
+  .kpi-value.amber { color: #ffa726; }
+
+  /* ── Chart Cards ── */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .chart-card { background: #111820; border: 1px solid #1a2332; border-radius: 12px; padding: 20px; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title { font-size: 13px; font-weight: 600; color: #5a6a7a; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 300px; }
+
+  /* ── Table ── */
+  .table-card { background: #111820; border: 1px solid #1a2332; border-radius: 12px; padding: 20px; margin-bottom: 24px; overflow-x: auto; }
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5a6a7a; padding: 10px 12px; text-align: left; border-bottom: 1px solid #1a2332; white-space: nowrap; }
+  .data-table td { font-size: 13px; padding: 10px 12px; border-bottom: 1px solid #0f1620; white-space: nowrap; }
+  .data-table tr:hover td { background: #0f1620; }
+  .data-table .num { text-align: right; font-weight: 600; }
+  .data-table .green { color: #4ecdc4; }
+  .data-table .red { color: #ff6b6b; }
+  .data-table .amber { color: #ffa726; }
+  .data-table .muted { color: #5a6a7a; }
+
+  /* ── Status badges ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .badge.overdue { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+  .badge.pending { background: rgba(255,167,38,0.15); color: #ffa726; }
+  .badge.paid { background: rgba(78,205,196,0.15); color: #4ecdc4; }
+  .badge.draft { background: rgba(90,106,122,0.15); color: #5a6a7a; }
+
+  /* ── Aging bar ── */
+  .aging-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+  .aging-segment { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #0a1018; min-width: 30px; transition: width 0.5s ease; }
+  .aging-0-30 { background: #4ecdc4; }
+  .aging-31-60 { background: #ffa726; }
+  .aging-61-90 { background: #ff7043; }
+  .aging-90plus { background: #ff6b6b; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 32px 0 16px; color: #2a3a4a; font-size: 11px; }
+
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 40vh; }
+  .spinner { width: 20px; height: 20px; border: 2px solid #4ecdc4; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.5s ease; }
+
+  /* ── Tabs ── */
+  .tab-row { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #1a2332; padding-bottom: 0; }
+  .tab-btn { padding: 8px 18px; border: none; background: transparent; color: #5a6a7a; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab-btn:hover { color: #8a9aaa; }
+  .tab-btn.active { color: #4ecdc4; border-bottom-color: #4ecdc4; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="loading"><div class="spinner"></div><span class="mono" style="color:#5a6a7a">Cashflow-Daten laden …</span></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://nzfwdehuacrwisuixdxu.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56ZndkZWh1YWNyd2lzdWl4ZHh1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTI2ODUzNywiZXhwIjoyMDg2ODQ0NTM3fQ._jj5KHUulpgC1VInd0_7m-AsMA-MkhcJsDkN-1x5xXU";
+
+const fmt = (v) => new Intl.NumberFormat("de-CH", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+const fmtK = (v) => v >= 1000 ? `${(v/1000).toFixed(v >= 10000 ? 0 : 1)}k` : fmt(v);
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("de-CH") : "–";
+const today = new Date(); today.setHours(0,0,0,0);
+
+async function fetchAll(table, filter = "") {
+  const all = []; let offset = 0;
+  while (true) {
+    const url = `${SUPABASE_URL}/rest/v1/${table}?${filter}&offset=${offset}&limit=1000`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: "count=exact" } });
+    if (!res.ok) break;
+    const data = await res.json();
+    all.push(...data);
+    const total = parseInt(res.headers.get("content-range")?.split("/")?.[1] || "0");
+    offset += 1000;
+    if (offset >= total || data.length < 1000) break;
+  }
+  return all;
+}
+
+function daysDiff(dateStr) {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  return Math.round((today - d) / 86400000);
+}
+
+function weekKey(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const start = new Date(d);
+  start.setDate(start.getDate() - start.getDay() + 1); // Monday
+  return start.toISOString().slice(0, 10);
+}
+
+async function main() {
+  // Load data
+  const [invoices, bills] = await Promise.all([
+    fetchAll("invoices", "select=id,document_nr,title,contact_id,status,is_valid_from,is_valid_to,total_gross,total_net,total_received,currency_code&status=not.in.(cancelled,draft)"),
+    fetchAll("bills", "select=id,document_nr,title,contact_id,status,bill_date,due_date,total_gross,total_net,total_paid,pending_amount,currency_code&status=neq.cancelled"),
+  ]);
+
+  // ── Compute open receivables (Debitoren) ──
+  const openInvoices = invoices.filter(i => ["pending","partial","overdue"].includes(i.status) || (parseFloat(i.total_gross||0) - parseFloat(i.total_received||0)) > 0.5);
+  const openReceivables = openInvoices.reduce((s, i) => s + parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), 0);
+
+  // ── Compute open payables (Kreditoren) ──
+  const openBills = bills.filter(b => ["booked","partial","overdue","pending"].includes(b.status) || parseFloat(b.pending_amount||0) > 0.5);
+  const openPayables = openBills.reduce((s, b) => s + parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), 0);
+
+  const netCashflow = openReceivables - openPayables;
+
+  // ── Overdue amounts ──
+  const overdueReceivables = openInvoices.filter(i => i.is_valid_to && new Date(i.is_valid_to) < today)
+    .reduce((s, i) => s + parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), 0);
+  const overduePayables = openBills.filter(b => b.due_date && new Date(b.due_date) < today)
+    .reduce((s, b) => s + parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), 0);
+
+  // ── Aging buckets (receivables) ──
+  const agingR = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
+  openInvoices.forEach(i => {
+    const open = parseFloat(i.total_gross||0) - parseFloat(i.total_received||0);
+    const days = daysDiff(i.is_valid_to || i.is_valid_from);
+    if (days <= 30) agingR["0-30"] += open;
+    else if (days <= 60) agingR["31-60"] += open;
+    else if (days <= 90) agingR["61-90"] += open;
+    else agingR["90+"] += open;
+  });
+
+  // ── Aging buckets (payables) ──
+  const agingP = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
+  openBills.forEach(b => {
+    const open = parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0);
+    const days = daysDiff(b.due_date || b.bill_date);
+    if (days <= 30) agingP["0-30"] += open;
+    else if (days <= 60) agingP["31-60"] += open;
+    else if (days <= 90) agingP["61-90"] += open;
+    else agingP["90+"] += open;
+  });
+
+  // ── Weekly cashflow projection (next 12 weeks) ──
+  const weeks = [];
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+  for (let i = 0; i < 12; i++) {
+    const ws = new Date(weekStart); ws.setDate(ws.getDate() + i * 7);
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    weeks.push({ start: new Date(ws), end: new Date(we), label: `KW${getWeekNumber(ws)}`, inflow: 0, outflow: 0 });
+  }
+
+  openInvoices.forEach(i => {
+    const due = new Date(i.is_valid_to || i.is_valid_from); due.setHours(0,0,0,0);
+    const open = parseFloat(i.total_gross||0) - parseFloat(i.total_received||0);
+    const w = weeks.find(w => due >= w.start && due <= w.end);
+    if (w) w.inflow += open;
+    else if (due < weeks[0].start) weeks[0].inflow += open; // overdue → expect this week
+  });
+
+  openBills.forEach(b => {
+    const due = new Date(b.due_date || b.bill_date); due.setHours(0,0,0,0);
+    const open = parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0);
+    const w = weeks.find(w => due >= w.start && due <= w.end);
+    if (w) w.outflow += open;
+    else if (due < weeks[0].start) weeks[0].outflow += open;
+  });
+
+  // cumulative net
+  let cumNet = 0;
+  weeks.forEach(w => { cumNet += w.inflow - w.outflow; w.cumNet = cumNet; });
+
+  function getWeekNumber(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  // ── Top 10 open invoices + bills ──
+  const topReceivables = [...openInvoices]
+    .map(i => ({ ...i, open: parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), due: i.is_valid_to }))
+    .sort((a,b) => b.open - a.open).slice(0, 10);
+  const topPayables = [...openBills]
+    .map(b => ({ ...b, open: parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), due: b.due_date }))
+    .sort((a,b) => b.open - a.open).slice(0, 10);
+
+  // ── RENDER ──
+  document.getElementById("app").innerHTML = `
+    <div class="fade-in">
+      <div class="header">
+        <div>
+          <div class="header-sub">Drixl Transporte GmbH</div>
+          <h1>💰 Cashflow & Liquidität</h1>
+        </div>
+        <div class="nav-links">
+          <a href="/" class="nav-link">← Dashboard</a>
+          <a href="/vergleich.html" class="nav-link">📊 Vergleich</a>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="section-title">Übersicht offene Posten</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label mono">Offene Debitoren</div>
+          <div class="kpi-value green mono">CHF ${fmt(openReceivables)}</div>
+          <div class="kpi-sub mono">${openInvoices.length} Rechnungen</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label mono">Offene Kreditoren</div>
+          <div class="kpi-value red mono">CHF ${fmt(openPayables)}</div>
+          <div class="kpi-sub mono">${openBills.length} Rechnungen</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label mono">Netto Cashflow</div>
+          <div class="kpi-value ${netCashflow >= 0 ? 'green' : 'red'} mono">CHF ${netCashflow >= 0 ? '+' : ''}${fmt(netCashflow)}</div>
+          <div class="kpi-sub mono">Debitoren − Kreditoren</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label mono">Überfällig</div>
+          <div class="kpi-value ${overdueReceivables > 0 ? 'amber' : 'green'} mono">CHF ${fmt(overdueReceivables)}</div>
+          <div class="kpi-sub mono">${overduePayables > 0 ? `Kreditoren: CHF ${fmt(overduePayables)}` : 'Keine überfälligen Kreditoren'}</div>
+        </div>
+      </div>
+
+      <!-- Aging Analysis -->
+      <div class="section-title">Fälligkeitsanalyse (Aging)</div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title mono">Debitoren Aging</div>
+          ${renderAgingBar(agingR, openReceivables)}
+          <div style="margin-top:12px">
+            <div class="chart-wrap" style="height:220px"><canvas id="chartAgingR"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title mono">Kreditoren Aging</div>
+          ${renderAgingBar(agingP, openPayables)}
+          <div style="margin-top:12px">
+            <div class="chart-wrap" style="height:220px"><canvas id="chartAgingP"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Forecast Chart -->
+      <div class="section-title">12-Wochen Cashflow-Prognose</div>
+      <div class="chart-grid">
+        <div class="chart-card full">
+          <div class="chart-title mono">Erwartete Ein- & Auszahlungen pro Woche</div>
+          <div class="chart-wrap"><canvas id="chartWeekly"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Tabs: Top Receivables / Payables -->
+      <div class="section-title">Offene Posten – Details</div>
+      <div class="tab-row">
+        <button class="tab-btn active mono" onclick="switchTab('recv')">Top Debitoren</button>
+        <button class="tab-btn mono" onclick="switchTab('pay')">Top Kreditoren</button>
+      </div>
+
+      <div id="tab-recv" class="tab-panel active">
+        <div class="table-card">
+          <table class="data-table mono">
+            <thead><tr><th>Nr</th><th>Titel</th><th>Fällig</th><th>Status</th><th class="num">Offen (CHF)</th></tr></thead>
+            <tbody>
+              ${topReceivables.map(r => `<tr>
+                <td class="muted">${r.document_nr || '–'}</td>
+                <td>${(r.title || '').slice(0,40)}</td>
+                <td>${fmtDate(r.due)}</td>
+                <td>${statusBadge(r.status, r.due)}</td>
+                <td class="num ${r.due && new Date(r.due) < today ? 'amber' : 'green'}">${fmt(r.open)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="tab-pay" class="tab-panel">
+        <div class="table-card">
+          <table class="data-table mono">
+            <thead><tr><th>Nr</th><th>Titel</th><th>Fällig</th><th>Status</th><th class="num">Offen (CHF)</th></tr></thead>
+            <tbody>
+              ${topPayables.map(b => `<tr>
+                <td class="muted">${b.document_nr || '–'}</td>
+                <td>${(b.title || '').slice(0,40)}</td>
+                <td>${fmtDate(b.due)}</td>
+                <td>${statusBadge(b.status, b.due)}</td>
+                <td class="num ${b.due && new Date(b.due) < today ? 'amber' : 'red'}">${fmt(b.open)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer mono">Stand: ${new Date().toLocaleDateString("de-CH")} · Drixl Transporte GmbH · Daten aus bexio via Supabase</div>
+    </div>
+  `;
+
+  // ── Charts ──
+  const chartDefaults = { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: "#8a9aaa", font: { family: "'JetBrains Mono'" } } } },
+    scales: { x: { ticks: { color: "#5a6a7a", font: { family: "'JetBrains Mono'", size: 10 } }, grid: { color: "#1a2332" } },
+              y: { ticks: { color: "#5a6a7a", font: { family: "'JetBrains Mono'", size: 10 }, callback: v => fmtK(v) }, grid: { color: "#1a2332" } } }
+  };
+
+  // Aging donut - Receivables
+  new Chart(document.getElementById("chartAgingR"), {
+    type: "doughnut",
+    data: { labels: ["0–30 T", "31–60 T", "61–90 T", "90+ T"],
+      datasets: [{ data: [agingR["0-30"], agingR["31-60"], agingR["61-90"], agingR["90+"]],
+        backgroundColor: ["#4ecdc4","#ffa726","#ff7043","#ff6b6b"], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "65%",
+      plugins: { legend: { position: "bottom", labels: { color: "#8a9aaa", font: { family: "'JetBrains Mono'", size: 11 }, padding: 12 } } } }
+  });
+
+  // Aging donut - Payables
+  new Chart(document.getElementById("chartAgingP"), {
+    type: "doughnut",
+    data: { labels: ["0–30 T", "31–60 T", "61–90 T", "90+ T"],
+      datasets: [{ data: [agingP["0-30"], agingP["31-60"], agingP["61-90"], agingP["90+"]],
+        backgroundColor: ["#4ecdc4","#ffa726","#ff7043","#ff6b6b"], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "65%",
+      plugins: { legend: { position: "bottom", labels: { color: "#8a9aaa", font: { family: "'JetBrains Mono'", size: 11 }, padding: 12 } } } }
+  });
+
+  // Weekly cashflow
+  new Chart(document.getElementById("chartWeekly"), {
+    type: "bar",
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [
+        { label: "Einnahmen (erwartet)", data: weeks.map(w => w.inflow), backgroundColor: "rgba(78,205,196,0.7)", borderRadius: 4, order: 2 },
+        { label: "Ausgaben (erwartet)", data: weeks.map(w => -w.outflow), backgroundColor: "rgba(255,107,107,0.7)", borderRadius: 4, order: 2 },
+        { label: "Kumuliert Netto", data: weeks.map(w => w.cumNet), type: "line", borderColor: "#ffa726", backgroundColor: "transparent",
+          borderWidth: 2, pointRadius: 3, pointBackgroundColor: "#ffa726", tension: 0.3, order: 1 },
+      ]
+    },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins,
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: CHF ${fmt(Math.abs(ctx.raw))}` } } },
+      scales: { ...chartDefaults.scales,
+        x: { ...chartDefaults.scales.x, stacked: true },
+        y: { ...chartDefaults.scales.y, stacked: false,
+          ticks: { ...chartDefaults.scales.y.ticks, callback: v => `${v < 0 ? '-' : ''}${fmtK(Math.abs(v))}` } }
+      }
+    }
+  });
+}
+
+function renderAgingBar(aging, total) {
+  if (total <= 0) return '<div style="color:#5a6a7a;font-size:12px;padding:8px">Keine offenen Posten</div>';
+  const pct = (v) => Math.max(((v / total) * 100), v > 0 ? 5 : 0).toFixed(1);
+  return `
+    <div class="aging-bar">
+      ${aging["0-30"] > 0 ? `<div class="aging-segment aging-0-30" style="width:${pct(aging["0-30"])}%" title="0–30 Tage: CHF ${fmt(aging["0-30"])}">${fmtK(aging["0-30"])}</div>` : ''}
+      ${aging["31-60"] > 0 ? `<div class="aging-segment aging-31-60" style="width:${pct(aging["31-60"])}%" title="31–60 Tage: CHF ${fmt(aging["31-60"])}">${fmtK(aging["31-60"])}</div>` : ''}
+      ${aging["61-90"] > 0 ? `<div class="aging-segment aging-61-90" style="width:${pct(aging["61-90"])}%" title="61–90 Tage: CHF ${fmt(aging["61-90"])}">${fmtK(aging["61-90"])}</div>` : ''}
+      ${aging["90+"] > 0 ? `<div class="aging-segment aging-90plus" style="width:${pct(aging["90+"])}%" title="90+ Tage: CHF ${fmt(aging["90+"])}">${fmtK(aging["90+"])}</div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a6a7a;margin-top:4px;font-family:'JetBrains Mono',monospace">
+      <span>0–30 T</span><span>31–60 T</span><span>61–90 T</span><span>90+ T</span>
+    </div>`;
+}
+
+function statusBadge(status, dueDate) {
+  if (dueDate && new Date(dueDate) < today && !["paid","cancelled"].includes(status)) return '<span class="badge overdue">Überfällig</span>';
+  if (status === "paid") return '<span class="badge paid">Bezahlt</span>';
+  if (status === "partial") return '<span class="badge pending">Teilzahlung</span>';
+  if (status === "draft") return '<span class="badge draft">Entwurf</span>';
+  return '<span class="badge pending">Offen</span>';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+main().catch(err => {
+  document.getElementById("app").innerHTML = `<div style="color:#ff6b6b;padding:40px;text-align:center">Fehler: ${err.message}</div>`;
+});
+</script>
+</body>
+</html>
