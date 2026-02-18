@@ -60,7 +60,7 @@ async function upsert(table, rows, ctx) {
       },
       body: JSON.stringify(chunk),
     });
-    if (!res.ok) throw new Error(`Supabase ${table} → ${res.status}`);
+    if (!res.ok) throw new Error(`if (!res.ok) throw new Error(`Supabase ${table} → ${res.status}`); → ${res.status}`);
     n += chunk.length;
   }
   return n;
