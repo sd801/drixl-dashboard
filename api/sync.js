@@ -33,7 +33,7 @@ async function bexioGet(endpoint, pat) {
     if (!res.ok) {
       if (res.status === 404 || res.status === 500) return [];
       const body = await res.text();
-      throw new Error(`bexio ${endpoint} → ${res.status}`);
+      throw new Error(`bexio ${endpoint} → ${res.status}: ${body.slice(0,200)}`);
     }
     const data = await res.json();
     if (!Array.isArray(data)) {
@@ -60,7 +60,10 @@ async function upsert(table, rows, ctx) {
       },
       body: JSON.stringify(chunk),
     });
-    if (!res.ok) throw new Error(`if (!res.ok) throw new Error(`Supabase ${table} → ${res.status}`); → ${res.status}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Supabase ${table} → ${res.status}: ${body.slice(0,300)}`);
+    }
     n += chunk.length;
   }
   return n;
@@ -174,7 +177,6 @@ const SYNC = {
   },
 
   account_groups: async (ctx) => {
-    // KORREKTUR: /2.0/account_groups (nicht account-groups!)
     const data = await bexioGet("/2.0/account_groups", ctx.pat);
     return upsert("account_groups", data.map(d => ({
       id: d.id, account_no: d.account_no ?? null, name: d.name ?? null,
@@ -185,7 +187,6 @@ const SYNC = {
   },
 
   manual_entries: async (ctx) => {
-    // KORREKTUR: /3.0/accounting/manual_entries (nicht manual-entries!)
     const data = await bexioGet("/3.0/accounting/manual_entries", ctx.pat);
     return upsert("manual_entries", data.map(d => ({
       id: d.id, type: d.type ?? null, date: d.date ?? null,
@@ -201,7 +202,6 @@ const SYNC = {
   },
 
   business_years: async (ctx) => {
-    // KORREKTUR: /3.0/accounting/business_years (nicht business-years!)
     const data = await bexioGet("/3.0/accounting/business_years", ctx.pat);
     return upsert("business_years", data.map(d => ({
       id: d.id, start: d.start ?? null, end: d.end ?? null,
@@ -212,7 +212,6 @@ const SYNC = {
   },
 
   calendar_years: async (ctx) => {
-    // KORREKTUR: /3.0/accounting/calendar_years (nicht calendar-years!)
     const data = await bexioGet("/3.0/accounting/calendar_years", ctx.pat);
     return upsert("calendar_years", data.map(d => ({
       id: d.id, start: d.start ?? null, end: d.end ?? null,
@@ -223,7 +222,6 @@ const SYNC = {
   },
 
   vat_periods: async (ctx) => {
-    // KORREKTUR: /3.0/accounting/vat_periods (nicht vat-periods!)
     const data = await bexioGet("/3.0/accounting/vat_periods", ctx.pat);
     return upsert("vat_periods", data.map(d => ({
       id: d.id, start: d.start ?? null, end: d.end ?? null,
@@ -325,9 +323,6 @@ export default async function handler(req, res) {
   const results = [];
   const t0 = Date.now();
   const entities = ["invoices", "quotes", "orders", "bills", "accounts", "account_groups", "manual_entries", "business_years", "calendar_years", "vat_periods", "taxes", "journal", "bank_accounts"];
-  // contacts & employees excluded from daily sync (rarely change)
-  // sync manually: /api/sync?key=SECRET&entity=contacts
-  //                /api/sync?key=SECRET&entity=employees
 
   for (const name of entities) {
     const start = Date.now();
