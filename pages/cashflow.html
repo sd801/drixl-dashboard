@@ -141,7 +141,7 @@ async function main() {
   // Load data
   const [invoices, bills] = await Promise.all([
     fetchAll("invoices", "select=id,document_nr,title,contact_id,status,is_valid_from,is_valid_to,total_gross,total_net,total_received,currency_code&status=not.in.(cancelled,draft)"),
-    fetchAll("bills", "select=id,document_nr,title,contact_id,status,bill_date,due_date,total_gross,total_net,total_paid,pending_amount,currency_code&status=neq.cancelled"),
+    fetchAll("bills", "select=id,document_nr,title,contact_id,status,bill_date,due_date,total_gross,total_net,total_paid,pending_amount,currency_code"),
   ]);
 
   // ── Compute open receivables (Debitoren) ──
@@ -149,8 +149,13 @@ async function main() {
   const openReceivables = openInvoices.reduce((s, i) => s + parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), 0);
 
   // ── Compute open payables (Kreditoren) ──
-  const openBills = bills.filter(b => ["booked","partial","overdue","pending"].includes(b.status) || parseFloat(b.pending_amount||0) > 0.5);
-  const openPayables = openBills.reduce((s, b) => s + parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), 0);
+  // — Compute open payables (Kreditoren) — bills use UPPERCASE status
+  const openBills = bills.filter(b => {
+    const s = (b.status || '').toUpperCase();
+    const amt = parseFloat(b.pending_amount || 0);
+    return ['BOOKED','PARTIALLY_PAID','CREATED','SENT'].includes(s) || amt > 0.5;
+  });
+  const openPayables = openBills.reduce((s, b) => s + parseFloat(b.pending_amount || 0), 0);
 
   const netCashflow = openReceivables - openPayables;
 
@@ -158,7 +163,7 @@ async function main() {
   const overdueReceivables = openInvoices.filter(i => i.is_valid_to && new Date(i.is_valid_to) < today)
     .reduce((s, i) => s + parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), 0);
   const overduePayables = openBills.filter(b => b.due_date && new Date(b.due_date) < today)
-    .reduce((s, b) => s + parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), 0);
+    .reduce((s, b) => s + parseFloat(b.pending_amount || 0), 0);
 
   // ── Aging buckets (receivables) ──
   const agingR = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
@@ -174,7 +179,7 @@ async function main() {
   // ── Aging buckets (payables) ──
   const agingP = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
   openBills.forEach(b => {
-    const open = parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0);
+    const open = parseFloat(b.pending_amount || 0);
     const days = daysDiff(b.due_date || b.bill_date);
     if (days <= 30) agingP["0-30"] += open;
     else if (days <= 60) agingP["31-60"] += open;
@@ -202,7 +207,7 @@ async function main() {
 
   openBills.forEach(b => {
     const due = new Date(b.due_date || b.bill_date); due.setHours(0,0,0,0);
-    const open = parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0);
+    const open = parseFloat(b.pending_amount || 0);
     const w = weeks.find(w => due >= w.start && due <= w.end);
     if (w) w.outflow += open;
     else if (due < weeks[0].start) weeks[0].outflow += open;
@@ -224,7 +229,7 @@ async function main() {
     .map(i => ({ ...i, open: parseFloat(i.total_gross||0) - parseFloat(i.total_received||0), due: i.is_valid_to }))
     .sort((a,b) => b.open - a.open).slice(0, 10);
   const topPayables = [...openBills]
-    .map(b => ({ ...b, open: parseFloat(b.pending_amount || (parseFloat(b.total_gross||0) - parseFloat(b.total_paid||0)) || 0), due: b.due_date }))
+    .map(b => ({ ...b, open: parseFloat(b.pending_amount || 0), due: b.due_date }))
     .sort((a,b) => b.open - a.open).slice(0, 10);
 
   // ── RENDER ──
@@ -406,10 +411,11 @@ function renderAgingBar(aging, total) {
 }
 
 function statusBadge(status, dueDate) {
-  if (dueDate && new Date(dueDate) < today && !["paid","cancelled"].includes(status)) return '<span class="badge overdue">Überfällig</span>';
-  if (status === "paid") return '<span class="badge paid">Bezahlt</span>';
-  if (status === "partial") return '<span class="badge pending">Teilzahlung</span>';
-  if (status === "draft") return '<span class="badge draft">Entwurf</span>';
+  const s = (status || '').toUpperCase();
+  if (dueDate && new Date(dueDate) < today && !['PAID','CANCELLED'].includes(s)) return '<span class="badge overdue">Überfällig</span>';
+  if (s === 'PAID') return '<span class="badge paid">Bezahlt</span>';
+  if (['PARTIAL','PARTIALLY_PAID'].includes(s)) return '<span class="badge pending">Teilzahlung</span>';
+  if (['DRAFT','CREATED'].includes(s)) return '<span class="badge draft">Entwurf</span>';
   return '<span class="badge pending">Offen</span>';
 }
 
