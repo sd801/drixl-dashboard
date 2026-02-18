@@ -158,6 +158,140 @@ const SYNC = {
       synced_at: new Date().toISOString(),
     })), ctx);
   },
+
+  // ── Accounting Endpoints (korrigiert: underscores statt hyphens) ──
+
+  accounts: async (ctx) => {
+    const data = await bexioGet("/2.0/accounts", ctx.pat);
+    return upsert("accounts", data.map(d => ({
+      id: d.id, account_no: d.account_no ?? null, name: d.name ?? null,
+      account_group_id: d.account_group_id ?? null,
+      account_type: d.account_type ?? null,
+      tax_id: d.tax_id ?? null, is_active: d.is_active ?? true,
+      is_locked: d.is_locked ?? false,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  account_groups: async (ctx) => {
+    // KORREKTUR: /2.0/account_groups (nicht account-groups!)
+    const data = await bexioGet("/2.0/account_groups", ctx.pat);
+    return upsert("account_groups", data.map(d => ({
+      id: d.id, account_no: d.account_no ?? null, name: d.name ?? null,
+      parent_id: d.parent_id ?? null,
+      is_active: d.is_active ?? true, is_locked: d.is_locked ?? false,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  manual_entries: async (ctx) => {
+    // KORREKTUR: /3.0/accounting/manual_entries (nicht manual-entries!)
+    const data = await bexioGet("/3.0/accounting/manual_entries", ctx.pat);
+    return upsert("manual_entries", data.map(d => ({
+      id: d.id, type: d.type ?? null, date: d.date ?? null,
+      reference_nr: d.reference_nr ?? null,
+      total_debit: parseFloat(d.total_debit ?? "0"),
+      total_credit: parseFloat(d.total_credit ?? "0"),
+      currency_id: d.currency_id ?? null, currency_code: d.currency_code ?? "CHF",
+      is_locked: d.is_locked ?? false,
+      entries: JSON.stringify(d.entries ?? []),
+      created_at: d.created_at ?? null, updated_at: d.updated_at ?? null,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  business_years: async (ctx) => {
+    // KORREKTUR: /3.0/accounting/business_years (nicht business-years!)
+    const data = await bexioGet("/3.0/accounting/business_years", ctx.pat);
+    return upsert("business_years", data.map(d => ({
+      id: d.id, start: d.start ?? null, end: d.end ?? null,
+      is_vat_subject: d.is_vat_subject ?? false,
+      is_closed: d.is_closed ?? false,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  calendar_years: async (ctx) => {
+    // KORREKTUR: /3.0/accounting/calendar_years (nicht calendar-years!)
+    const data = await bexioGet("/3.0/accounting/calendar_years", ctx.pat);
+    return upsert("calendar_years", data.map(d => ({
+      id: d.id, start: d.start ?? null, end: d.end ?? null,
+      is_vat_subject: d.is_vat_subject ?? false,
+      is_annual_reporting: d.is_annual_reporting ?? false,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  vat_periods: async (ctx) => {
+    // KORREKTUR: /3.0/accounting/vat_periods (nicht vat-periods!)
+    const data = await bexioGet("/3.0/accounting/vat_periods", ctx.pat);
+    return upsert("vat_periods", data.map(d => ({
+      id: d.id, start: d.start ?? null, end: d.end ?? null,
+      calendar_year_id: d.calendar_year_id ?? null,
+      is_closed: d.is_closed ?? false,
+      annual: d.annual ?? false,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  taxes: async (ctx) => {
+    const data = await bexioGet("/2.0/taxes", ctx.pat);
+    return upsert("taxes", data.map(d => ({
+      id: d.id, uuid: d.uuid ?? null, name: d.name ?? null, code: d.code ?? null,
+      digit: d.digit ?? null, type: d.type ?? null,
+      account_id: d.account_id ?? null, tax_settlement_type: d.tax_settlement_type ?? null,
+      value: parseFloat(d.value ?? "0"),
+      net_tax_value: d.net_tax_value != null ? parseFloat(d.net_tax_value) : null,
+      start_year: d.start_year ?? null, end_year: d.end_year ?? null,
+      is_active: d.is_active ?? true, display_name: d.display_name ?? null,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  journal: async (ctx) => {
+    const data = await bexioGet("/3.0/accounting/journal", ctx.pat);
+    return upsert("journal_entries", data.map(d => ({
+      id: d.id, date: d.date ?? null, reference_nr: d.reference_nr ?? null,
+      description: d.description ?? null,
+      debit_account_id: d.debit_account_id ?? null,
+      credit_account_id: d.credit_account_id ?? null,
+      tax_id: d.tax_id ?? null, tax_account_id: d.tax_account_id ?? null,
+      amount: parseFloat(d.amount ?? "0"),
+      tax_amount: d.tax_amount != null ? parseFloat(d.tax_amount) : null,
+      currency_id: d.currency_id ?? null, currency_code: d.currency_code ?? "CHF",
+      base_currency_id: d.base_currency_id ?? null,
+      currency_factor: d.currency_factor != null ? parseFloat(d.currency_factor) : null,
+      base_currency_amount: d.base_currency_amount != null ? parseFloat(d.base_currency_amount) : null,
+      source: d.source ?? null, ref_uuid: d.ref_uuid ?? null,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  // ── Payroll Endpoints ──
+
+  employees: async (ctx) => {
+    const data = await bexioGet("/4.0/payroll/employees", ctx.pat);
+    return upsert("employees", data.map(d => ({
+      id: String(d.id), first_name: d.first_name ?? null, last_name: d.last_name ?? null,
+      email: d.email ?? null, department: d.department ?? null,
+      employment_type: d.employment_type ?? null,
+      salary: d.salary != null ? parseFloat(d.salary) : null,
+      entry_date: d.entry_date ?? null, exit_date: d.exit_date ?? null,
+      is_active: d.exit_date == null,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
+
+  bank_accounts: async (ctx) => {
+    const data = await bexioGet("/3.0/banking/accounts", ctx.pat);
+    return upsert("bank_accounts", data.map(d => ({
+      id: d.id, name: d.name ?? null, iban: d.iban ?? null,
+      account_no: d.account_no ?? null, bc_nr: d.bc_nr ?? null,
+      currency_id: d.currency_id ?? null, account_id: d.account_id ?? null,
+      is_default: d.is_default ?? false, type: d.type ?? null,
+      synced_at: new Date().toISOString(),
+    })), ctx);
+  },
 };
 
 // ── Handler ─────────────────────────────────────────────────
@@ -190,9 +324,10 @@ export default async function handler(req, res) {
   // ── Alle Entities nacheinander (Cron oder manuell) ──
   const results = [];
   const t0 = Date.now();
-  const entities = ["invoices", "quotes", "orders", "bills"];
-  // contacts excluded from daily sync (rarely change, saves ~10s)
-  // sync contacts manually: /api/sync?key=SECRET&entity=contacts
+  const entities = ["invoices", "quotes", "orders", "bills", "accounts", "account_groups", "manual_entries", "business_years", "calendar_years", "vat_periods", "taxes", "journal", "bank_accounts"];
+  // contacts & employees excluded from daily sync (rarely change)
+  // sync manually: /api/sync?key=SECRET&entity=contacts
+  //                /api/sync?key=SECRET&entity=employees
 
   for (const name of entities) {
     const start = Date.now();
