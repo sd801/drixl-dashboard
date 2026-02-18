@@ -1,0 +1,31 @@
+{
+  "crons": [
+    {
+      "path": "/api/sync",
+      "schedule": "0 5 * * *"
+    }
+  ],
+  "functions": {
+    "api/sync.js": {
+      "maxDuration": 300
+    },
+    "api/middleware.js": {
+      "includeFiles": "pages/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/login", "destination": "/api/login" },
+    { "source": "/api/logout", "destination": "/api/logout" },
+    { "source": "/api/sync", "destination": "/api/sync" },
+    { "source": "/(.*)", "destination": "/api/middleware" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}
